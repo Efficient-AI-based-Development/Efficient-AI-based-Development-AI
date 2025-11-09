@@ -1,0 +1,33 @@
+# ===============================================
+# 1. Backend & Server (FastAPI)
+# ===============================================
+fastapi
+uvicorn[standard]  # ASGI 서버 (애플리케이션 실행)
+pydantic           # 데이터 유효성 검사 및 모델링 (FastAPI 스키마에 사용)
+
+# ===============================================
+# 2. LLM Orchestration (LangChain/LangGraph)
+# ===============================================
+langchain
+langchain-upstage
+langgraph          # 최종 단계의 Task -> SubTask 순환 분해 구현
+tiktoken           # 토큰 계산 및 비용 최적화 (AI 품질 관리)
+
+# ===============================================
+# 3. LLM Providers (API 연동)
+# ===============================================
+openai             # GPT-5 (검증/보완) 연동용
+anthropic          # Claude 3.5 Sonnet (문서 생성/Task 작성) 연동용
+httpx              # OpenRouter 등 외부 API 호출에 사용될 수 있는 비동기 HTTP 클라이언트
+
+# ===============================================
+# 4. Utilities & Database
+# ===============================================
+python-dotenv      # 환경 변수 관리 (API Key 등)
+sqlalchemy         # Oracle DB 연결 및 ORM 사용 시 (선택 사항이나 ORM 사용을 권장)
+oracledb           # Oracle 데이터베이스 드라이버 (필요 시)
+
+# ===============================================
+# 5. Development & Testing
+# ===============================================
+pytest             # 테스트 프레임워크
