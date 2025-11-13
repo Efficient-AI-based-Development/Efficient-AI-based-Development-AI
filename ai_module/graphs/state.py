@@ -10,3 +10,4 @@ class GraphState(TypedDict):
     feedback_message: str
     status: str
     retry_count: int
+    srs_document: str | None

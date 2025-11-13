@@ -1,9 +1,9 @@
 # app/main.py
 
 import logging
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 from app.core.config import settings
 from app.api.endpoints import router as ai_router
 
