@@ -3,115 +3,126 @@
 import json
 from langgraph.graph import END
 from langgraph.graph.state import StateGraph
+from .state import GraphState
+from .agents.planner_agent import create_planner_chain
+from .agents.auditor_agent import create_auditor_chain
+from .agents.writer_agent import create_writer_chain
+from app.utils.logger import get_logger
 
-from .graph_state import GraphState
-from .agents.planner_agent import create_planner_chain, PlannerOutput
-from .agents.auditor_agent import create_auditor_chain, AuditorOutput
-from .agents.writer_agent import create_writer_chain, WriterOutput
+logger = get_logger(__name__)
 
 
-# planner 실행 및 SubTask 생성
 def planner_node(state: GraphState) -> GraphState:
-    print("PLANNER start")
+    logger.info("[PLANNER] start")
     parent_task = state["user_input"]
     if state.get("feedback_message"):
-        print(f"REFINE: {state['feedback_message']}")
+        logger.debug("[PLANNER] refinement feedback: %s", state["feedback_message"])
+
     chain = create_planner_chain()
-    retry = state.get("retry_count", 0) + 1
+    new_retry = state.get("retry_count", 0) + 1
+
     try:
-        r: PlannerOutput = chain.invoke(
+        result = chain.invoke(
             {
                 "parent_task_id": "TASK-AI-001",
                 "task_description": parent_task,
                 "feedback": state.get("feedback_message", ""),
             }
         )
-        subtasks = [t.model_dump() for t in r.subtasks]
+        subtasks_list = [t.model_dump() for t in result.subtasks]
+        logger.info("[PLANNER] 생성된 SubTask 수: %d", len(subtasks_list))
         return {
-            "subtasks": subtasks,
+            "subtasks": subtasks_list,
             "status": "REVIEW_NEEDED",
-            "feedback_message": f"Planner ok: {len(subtasks)}",
-            "retry_count": retry,
+            "feedback_message": f"Planner 성공: SubTask {len(subtasks_list)}개 생성.",
+            "retry_count": new_retry,
         }
     except Exception as e:
-        print(f"PLANNER error: {e}")
+        logger.exception("[PLANNER] error: %s", e)
         return {
             "subtasks": state.get("subtasks", []),
             "status": "ERROR",
-            "feedback_message": f"Planner error: {e}",
-            "retry_count": retry,
+            "feedback_message": f"Planner 오류: {e}",
+            "retry_count": new_retry,
         }
 
 
-# auditor 실행 및 다음 상태 결정
 def auditor_node(state: GraphState) -> GraphState:
-    print("AUDITOR start")
+    logger.info("[AUDITOR] start")
     chain = create_auditor_chain()
     subtasks_json = json.dumps(state["subtasks"], ensure_ascii=False, indent=2)
     try:
-        r: AuditorOutput = chain.invoke(
+        result = chain.invoke(
             {
                 "parent_task_description": state["user_input"],
                 "subtasks_json": subtasks_json,
             }
         )
+        logger.info("[AUDITOR] 판단: %s", result.next_action)
+        logger.debug("[AUDITOR] feedback: %s", result.feedback)
         return {
             "subtasks": state["subtasks"],
-            "status": r.next_action,
-            "feedback_message": r.feedback,
+            "status": result.next_action,
+            "feedback_message": result.feedback,
         }
     except Exception as e:
-        print(f"AUDITOR error: {e}")
+        logger.exception("[AUDITOR] error: %s", e)
         return {
             "subtasks": state["subtasks"],
             "status": "ERROR",
-            "feedback_message": f"Auditor error: {e}",
+            "feedback_message": f"Auditor 오류: {e}",
         }
 
 
-# writer 실행 및 SRS 생성
 def writer_node(state: GraphState) -> GraphState:
-    print("WRITER start")
+    logger.info("[WRITER] start")
     chain = create_writer_chain()
     subtasks_json = json.dumps(state["subtasks"], ensure_ascii=False, indent=2)
     try:
-        r: WriterOutput = chain.invoke(
+        result = chain.invoke(
             {
                 "parent_task_id": "TASK-AI-001",
                 "subtasks_json": subtasks_json,
             }
         )
-        print("WRITER done")
+        logger.info("[WRITER] SRS 생성 완료 (길이=%d)", len(result.srs_document or ""))
         return {
             "subtasks": state["subtasks"],
             "status": "DONE",
-            "feedback_message": "SRS done",
-            "srs_document": r.srs_document,
+            "feedback_message": "SRS 문서 생성 완료",
+            "srs_document": result.srs_document,
         }
     except Exception as e:
-        print(f"WRITER error: {e}")
+        logger.exception("[WRITER] error: %s", e)
         return {
             "subtasks": state.get("subtasks", []),
             "status": "ERROR",
-            "feedback_message": f"Writer error: {e}",
+            "feedback_message": f"Writer 오류: {e}",
         }
 
 
-# 상태 기반 분기 결정
 MAX_REFINEMENT_ATTEMPTS = 10
 
 
 def decide_next_step(state: GraphState) -> str:
-    print(f"DECISION: {state.get('status')}")
-    retry = state.get("retry_count", 0)
+    logger.info(
+        "[DECISION] status=%s retry=%s",
+        state.get("status"),
+        state.get("retry_count", 0),
+    )
     status = state.get("status", "ERROR")
+    retry = state.get("retry_count", 0)
     if status == "PASS":
         return "writer"
     if status == "REFINEMENT":
         if retry >= MAX_REFINEMENT_ATTEMPTS:
-            print("REFINE limit. END")
+            logger.error("[DECISION] max retries exceeded")
             return END
         return "planner"
+    if status == "ERROR":
+        logger.error("[DECISION] ERROR 상태 — 종료")
+        return END
+    logger.warning("[DECISION] 알 수 없는 상태(%s) — 종료", status)
     return END
 
 
@@ -119,8 +130,10 @@ workflow = StateGraph(GraphState)
 workflow.add_node("planner", planner_node)
 workflow.add_node("auditor", auditor_node)
 workflow.add_node("writer", writer_node)
+
 workflow.set_entry_point("planner")
 workflow.add_edge("planner", "auditor")
 workflow.add_conditional_edges("auditor", decide_next_step)
 workflow.add_edge("writer", END)
+
 decomposition_app = workflow.compile()

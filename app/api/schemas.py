@@ -1,52 +1,81 @@
 # app/api/schemas.py
 
-
-from typing import List, Literal
+from typing import List, Literal, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
-# PRD/Task 생성용 사용자 입력 형식
+# 입력
 class ProjectInput(BaseModel):
-    user_input: str = Field(...)
+    user_input: str = Field(..., description="프로젝트 개요/요구사항 자연어 입력")
 
 
-# 개별 Task 항목 형식
-class Task(BaseModel):
-    task_id: int = Field(...)
-    title: str = Field(...)
-    description: str = Field(...)
-    assigned_role: str = Field(...)
-    priority: str = Field(...)
-
-
-# Task list 출력 형식
-class TaskListOutput(BaseModel):
-    project_name: str = Field(...)
-    tasks: List[Task] = Field(...)
-
-
-# PRD 문서 출력 형식
+# PRD
 class PRDOutput(BaseModel):
-    prd_document: str = Field(...)
+    prd_document: str
 
 
-# 분해 요청 입력 형식
-class DecompositionInput(BaseModel):
-    parent_task_id: str = Field(...)
-    task_description: str = Field(...)
+# TaskList
+class TaskListInput(BaseModel):
+    prd_document: Optional[str] = None
+    user_input: Optional[str] = None
 
 
-# 분해된 Subtask 형식
+class Task(BaseModel):
+    task_id: int
+    title: str
+    description: str
+    assigned_role: Literal["AI", "Backend", "Frontend"]
+    priority: Literal["High", "Medium", "Low"]
+
+
+class TaskListOutput(BaseModel):
+    project_name: str
+    tasks: List[Task]
+
+
+# Planner
 class SubTask(BaseModel):
-    subtask_id: str = Field(...)
-    title: str = Field(...)
-    description: str = Field(...)
-    assigned_role: Literal["AI", "Backend", "Frontend"] = Field(...)
+    subtask_id: str
+    title: str
+    description: str
+    assigned_role: Literal["AI", "Backend", "Frontend"]
     dependencies: List[str] = Field(default_factory=list)
 
 
-# planner 결과 출력 형식
+class WriterOutput(BaseModel):
+    parent_task_id: str
+    srs_document: str
+
+
+class AuditorOutput(BaseModel):
+    next_action: Literal["REFINEMENT", "PASS"]
+    feedback: str
+    subtasks_review: List[Dict[str, Any]] = Field(default_factory=list)
+
+
 class PlannerOutput(BaseModel):
-    parent_task_id: str = Field(...)
-    analysis: str = Field(...)
+    parent_task_id: str
+    analysis: str
     subtasks: List[SubTask] = Field(default_factory=list)
+
+
+# Decompose
+class DecompositionInput(BaseModel):
+    tasks: List[Task]
+
+
+class SubTaskWithParent(SubTask):
+    parent_task_id: int
+
+
+class DecompositionItem(BaseModel):
+    task_id: int
+    title: str
+    assigned_role: Literal["AI", "Backend", "Frontend"]
+    subtasks: List[SubTaskWithParent]
+    srs_document: Optional[str] = None
+
+
+class DecompositionOutput(BaseModel):
+    items: List[DecompositionItem]
+    all_subtasks: List[SubTaskWithParent]
