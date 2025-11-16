@@ -1,10 +1,11 @@
 # app/api/schemas.py
 
 from typing import List, Literal, Optional, Dict, Any
+
 from pydantic import BaseModel, Field
 
 
-# 입력
+# 프로젝트 입력
 class ProjectInput(BaseModel):
     user_input: str = Field(..., description="프로젝트 개요/요구사항 자연어 입력")
 
@@ -14,7 +15,7 @@ class PRDOutput(BaseModel):
     prd_document: str
 
 
-# TaskList
+# Task List
 class TaskListInput(BaseModel):
     prd_document: Optional[str] = None
     user_input: Optional[str] = None
@@ -24,8 +25,9 @@ class Task(BaseModel):
     task_id: int
     title: str
     description: str
-    assigned_role: Literal["AI", "Backend", "Frontend"]
-    priority: Literal["High", "Medium", "Low"]
+    assigned_role: Literal["Backend", "Frontend"]
+    priority: int = Field(..., ge=0, le=10)
+    tag: Literal["개발", "디자인", "문서"]
 
 
 class TaskListOutput(BaseModel):
@@ -33,12 +35,12 @@ class TaskListOutput(BaseModel):
     tasks: List[Task]
 
 
-# Planner
+# Planner / SubTask
 class SubTask(BaseModel):
     subtask_id: str
     title: str
     description: str
-    assigned_role: Literal["AI", "Backend", "Frontend"]
+    assigned_role: Literal["Backend", "Frontend"]
     dependencies: List[str] = Field(default_factory=list)
 
 
@@ -59,7 +61,7 @@ class PlannerOutput(BaseModel):
     subtasks: List[SubTask] = Field(default_factory=list)
 
 
-# Decompose
+# Decomposition
 class DecompositionInput(BaseModel):
     tasks: List[Task]
 
@@ -71,7 +73,7 @@ class SubTaskWithParent(SubTask):
 class DecompositionItem(BaseModel):
     task_id: int
     title: str
-    assigned_role: Literal["AI", "Backend", "Frontend"]
+    assigned_role: Literal["Backend", "Frontend"]
     subtasks: List[SubTaskWithParent]
     srs_document: Optional[str] = None
 
@@ -79,3 +81,31 @@ class DecompositionItem(BaseModel):
 class DecompositionOutput(BaseModel):
     items: List[DecompositionItem]
     all_subtasks: List[SubTaskWithParent]
+
+
+# Codegen / Repo 스냅샷
+class CodeChange(BaseModel):
+    file_path: str
+    action: Literal["create", "update", "delete"]
+    content: str | None = None
+
+
+class CodegenOutput(BaseModel):
+    subtask_id: str
+    subtask_title: str
+    assigned_role: Literal["Backend", "Frontend"]
+    summary: str
+    changes: List[CodeChange] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class RepoFile(BaseModel):
+    path: str
+    content: str
+
+
+class RepoSnapshot(BaseModel):
+    root: Optional[str] = None
+    branch: Optional[str] = None
+    commit: Optional[str] = None
+    files: List[RepoFile] = Field(default_factory=list)

@@ -14,6 +14,7 @@ DEFAULT_MODEL = "solar-pro2"
 logger = get_logger(__name__)
 
 
+# 프롬프트에 따라 사용할 LLM 모델 결정
 def get_model_name(kind: str | None = None) -> str:
     if kind == "prd":
         return getattr(settings, "LLM_MODEL_PRD", DEFAULT_MODEL) or DEFAULT_MODEL
@@ -28,6 +29,7 @@ def get_model_name(kind: str | None = None) -> str:
     return getattr(settings, "LLM_MODEL_SOLAR", DEFAULT_MODEL) or DEFAULT_MODEL
 
 
+# ChatUpStage 인스턴스 생성
 def get_llm(
     kind: str | None = None,
     temperature: float = 0.25,
@@ -40,7 +42,8 @@ def get_llm(
     if not settings.UPSTAGE_API_KEY:
         logger.warning("[LLM] API Key 미설정 — Mock LLM 사용 (model=%s)", name)
         return FakeListChatModel(
-            responses=[mock_response or json.dumps({"ok": True})], name=f"MOCK-{name}"
+            responses=[mock_response or json.dumps({"ok": True})],
+            name=f"MOCK-{name}",
         )
 
     logger.info(
@@ -61,8 +64,10 @@ def get_llm(
     )
 
 
+# LLM 출력이 JSON으로 오도록 래핑
 def with_structured(llm: BaseChatModel, schema: Type[BaseModel]) -> BaseChatModel:
     logger.debug(
-        "[LLM] 구조화 출력 활성화 (schema=%s)", getattr(schema, "__name__", str(schema))
+        "[LLM] 구조화 출력 활성화 (schema=%s)",
+        getattr(schema, "__name__", str(schema)),
     )
     return llm.with_structured_output(schema)

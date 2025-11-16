@@ -1,34 +1,73 @@
+# ===========================
 # Python
+# ===========================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.egg-info/
-.dist/
-build/
-dist/
+*.egg
+*.so
 
-# venv
+# Build
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual Envs
 .venv/
 venv/
+ENV/
+env/
 
-# OS/IDE
+# ===========================
+# Logs
+# ===========================
+logs/
+*.log
+
+# ===========================
+# OS / Editor
+# ===========================
 .DS_Store
 .vscode/
 .idea/
 
-# FastAPI / Uvicorn
-*.log
+# ===========================
+# FastAPI / Uvicorn / Runtime
+# ===========================
+*.sqlite3
+*.db
+*.pid
+*.lock
 
-# Env & secrets
+# ===========================
+# Secrets / Env
+# ===========================
 .env
 .env.*
-!.env.example
+*.env
+!*.env.example
 
-# Cache
+# ===========================
+# Cache / Testing
+# ===========================
 .cache/
 .mypy_cache/
 .pytest_cache/
+coverage.xml
+htmlcov/
 
-# Node (만약 프론트 같이 들어오면)
+# ===========================
+# Node (if frontend added later)
+# ===========================
 node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ===========================
+# Misc
+# ===========================
+*.tmp
+*.bak

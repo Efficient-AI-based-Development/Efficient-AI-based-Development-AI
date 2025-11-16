@@ -2,12 +2,11 @@
 
 import asyncio
 from fastapi import APIRouter, HTTPException, Body
-
 from ai_module.common.ids import normalize_ids
 from ai_module.chains.prd_chain import generate_prd
 from ai_module.chains.tasklist_chain import generate_tasklist
+from ai_module.chains.codegen_chain import implement_subtask
 from ai_module.graphs.decomposition_graph import decomposition_app, GraphState
-from ai_module.graphs.agents.planner_agent import PlannerOutput
 from app.api.schemas import (
     ProjectInput,
     PRDOutput,
@@ -17,6 +16,8 @@ from app.api.schemas import (
     DecompositionOutput,
     DecompositionItem,
     SubTaskWithParent,
+    RepoSnapshot,
+    CodegenOutput,
 )
 from app.utils.logger import get_logger
 
@@ -24,6 +25,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
+# PRD 생성 API 엔드포인트
 @router.post("/prd", response_model=PRDOutput, summary="PRD 생성")
 def generate_prd_endpoint(
     project_input: ProjectInput = Body(
@@ -41,6 +43,7 @@ def generate_prd_endpoint(
         raise HTTPException(status_code=500, detail=f"PRD 서버 오류: {e}")
 
 
+# Task List 생성 API 엔드포인트
 @router.post("/tasks", response_model=TaskListOutput, summary="Task List 생성")
 def generate_tasklist_endpoint(
     project_input: TaskListInput = Body(
@@ -62,6 +65,7 @@ def generate_tasklist_endpoint(
         raise HTTPException(status_code=500, detail=f"Task List 서버 오류: {e}")
 
 
+# 여러 Task를 병렬로 SubTask/SRS로 분해하는 API 엔드포인트
 @router.post(
     "/decompose",
     response_model=DecompositionOutput,
@@ -73,6 +77,9 @@ async def decompose(inp: DecompositionInput = Body(...)):
     cfg = {"recursion_limit": 50}
 
     async def run_one(t):
+        """
+        단일 Task를 LangGraph decomposition_app으로 실행해 DecompositionItem으로 변환.
+        """
         logger.debug(
             "[Decompose] run_one 시작 (task_id=%s, title=%s)", t.task_id, t.title
         )
@@ -133,6 +140,40 @@ async def decompose(inp: DecompositionInput = Body(...)):
         all_subtasks.extend(it.subtasks)
 
     output = DecompositionOutput(items=items, all_subtasks=all_subtasks)
-    normalized = normalize_ids(output)
+    normalized_dict = normalize_ids(output.model_dump())
+    normalized = DecompositionOutput(**normalized_dict)
     logger.info("[DecomposeBatch] 완료 (success=%d, fail=%d)", len(items), len(errors))
     return normalized
+
+
+# 단일 SubTask에 대한 코드 결과를 생성하는 API 엔드포인트
+@router.post("/codegen", response_model=CodegenOutput)
+async def generate_code_changes(
+    subtask: SubTaskWithParent = Body(...),
+) -> CodegenOutput:
+    logger.info("[Codegen] 요청 수신")
+    try:
+        empty_snapshot = RepoSnapshot(
+            root="",
+            branch="",
+            commit="",
+            files=[],
+        )
+
+        result = implement_subtask(
+            subtask=subtask,
+            repo_snapshot=empty_snapshot,
+        )
+
+        logger.info(
+            "[Codegen] 완료: subtask_id=%s, changes=%d",
+            result.subtask_id,
+            len(result.changes),
+        )
+        return result
+    except Exception as e:
+        logger.exception("[Codegen] 오류 발생: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Codegen 서버 오류: {e}",
+        )
