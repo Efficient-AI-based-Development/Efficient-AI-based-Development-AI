@@ -1,4 +1,4 @@
-# ai_module/langgraph_final/decomposition_graph.py
+# ai_module/graphs/decomposition_graph.py
 
 import json
 from langgraph.graph import END
@@ -11,7 +11,11 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# 그래프 내에서 사용할 기본 Task ID
+DEFAULT_TASK_ID = "TASK-BE-001"
 
+
+# Planner 노드: 상위 Task 설명을 SubTask 리스트로 분해
 def planner_node(state: GraphState) -> GraphState:
     logger.info("[PLANNER] start")
     parent_task = state["user_input"]
@@ -24,7 +28,7 @@ def planner_node(state: GraphState) -> GraphState:
     try:
         result = chain.invoke(
             {
-                "parent_task_id": "TASK-AI-001",
+                "parent_task_id": DEFAULT_TASK_ID,
                 "task_description": parent_task,
                 "feedback": state.get("feedback_message", ""),
             }
@@ -47,6 +51,7 @@ def planner_node(state: GraphState) -> GraphState:
         }
 
 
+# Auditor 노드: 생성된 SubTask 리스트를 검증하고 PASS/REFINEMENT 판단
 def auditor_node(state: GraphState) -> GraphState:
     logger.info("[AUDITOR] start")
     chain = create_auditor_chain()
@@ -74,6 +79,7 @@ def auditor_node(state: GraphState) -> GraphState:
         }
 
 
+# Writer 노드: 최종 SubTask 리스트를 기반으로 SRS 문서를 생성
 def writer_node(state: GraphState) -> GraphState:
     logger.info("[WRITER] start")
     chain = create_writer_chain()
@@ -81,7 +87,7 @@ def writer_node(state: GraphState) -> GraphState:
     try:
         result = chain.invoke(
             {
-                "parent_task_id": "TASK-AI-001",
+                "parent_task_id": DEFAULT_TASK_ID,
                 "subtasks_json": subtasks_json,
             }
         )
@@ -104,6 +110,7 @@ def writer_node(state: GraphState) -> GraphState:
 MAX_REFINEMENT_ATTEMPTS = 10
 
 
+# Auditor 결과를 보고 다음 노드(planner/writer/종료)를 결정
 def decide_next_step(state: GraphState) -> str:
     logger.info(
         "[DECISION] status=%s retry=%s",
@@ -112,20 +119,25 @@ def decide_next_step(state: GraphState) -> str:
     )
     status = state.get("status", "ERROR")
     retry = state.get("retry_count", 0)
+
     if status == "PASS":
         return "writer"
+
     if status == "REFINEMENT":
         if retry >= MAX_REFINEMENT_ATTEMPTS:
             logger.error("[DECISION] max retries exceeded")
             return END
         return "planner"
+
     if status == "ERROR":
         logger.error("[DECISION] ERROR 상태 — 종료")
         return END
+
     logger.warning("[DECISION] 알 수 없는 상태(%s) — 종료", status)
     return END
 
 
+# LangGraph 워크플로우 정의
 workflow = StateGraph(GraphState)
 workflow.add_node("planner", planner_node)
 workflow.add_node("auditor", auditor_node)

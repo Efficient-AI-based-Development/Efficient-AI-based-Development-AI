@@ -1,16 +1,18 @@
-# ai_module/langchain_mvp/tasklist_chain.py
+# ai_module/chains/tasklist_chain.py
 
 from __future__ import annotations
 import json
 from langchain_core.prompts import ChatPromptTemplate
 from ai_module.common.llm import get_llm, with_structured
 from ai_module.common.prompts import tasklist_system
-from ai_module.common.text import strip_code_fences
 from app.api.schemas import TaskListOutput
 
 
 # Task List 생성을 위한 LLM 체인 구성
 def create_tasklist_generation_chain():
+    """
+    PRD/추가 설명을 입력으로 받아 TaskListOutput을 생성하는 LLM 체인을 구성한다.
+    """
     llm = with_structured(get_llm("tasklist", temperature=0.3), TaskListOutput)
     system_prompt = tasklist_system()
 
@@ -35,11 +37,13 @@ def create_tasklist_generation_chain():
 def generate_tasklist(
     prd_document: str | None, user_input: str | None
 ) -> TaskListOutput:
+    """
+    PRD 문서와 사용자 입력을 바탕으로 TaskListOutput 객체를 생성한다.
+    """
     chain, schema_text = create_tasklist_generation_chain()
-    prd_clean = strip_code_fences(prd_document)
     result = chain.invoke(
         {
-            "prd_document": prd_clean,
+            "prd_document": prd_document or "",
             "user_input": user_input or "",
             "schema_text": schema_text,
         }
