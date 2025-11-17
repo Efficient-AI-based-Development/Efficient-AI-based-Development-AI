@@ -10,9 +10,6 @@ from app.api.schemas import WriterOutput
 
 # Writer LLM 체인 생성
 def create_writer_chain() -> Runnable:
-    """
-    Task ID와 SubTask JSON을 입력받아 SRS 문서를 생성하는 Writer 체인을 만든다.
-    """
     llm = with_structured(get_llm("writer", temperature=0.4), WriterOutput)
     system_prompt = writer_system()
     schema_text = json.dumps(
