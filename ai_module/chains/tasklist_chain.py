@@ -10,9 +10,6 @@ from app.api.schemas import TaskListOutput
 
 # Task List 생성을 위한 LLM 체인 구성
 def create_tasklist_generation_chain():
-    """
-    PRD/추가 설명을 입력으로 받아 TaskListOutput을 생성하는 LLM 체인을 구성한다.
-    """
     llm = with_structured(get_llm("tasklist", temperature=0.3), TaskListOutput)
     system_prompt = tasklist_system()
 
@@ -37,9 +34,6 @@ def create_tasklist_generation_chain():
 def generate_tasklist(
     prd_document: str | None, user_input: str | None
 ) -> TaskListOutput:
-    """
-    PRD 문서와 사용자 입력을 바탕으로 TaskListOutput 객체를 생성한다.
-    """
     chain, schema_text = create_tasklist_generation_chain()
     result = chain.invoke(
         {

@@ -9,10 +9,6 @@ LOG_FILE = os.path.join(LOG_DIR, f"app_{datetime.now().strftime('%Y%m%d')}.log")
 
 
 def setup_logger() -> None:
-    """
-    전체 애플리케이션 공용 로깅 설정을 초기화한다.
-    (이미 핸들러가 있으면 재설정하지 않는다.)
-    """
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
 
@@ -38,9 +34,6 @@ def setup_logger() -> None:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    모듈 이름(name)을 기준으로 로거 인스턴스를 반환한다.
-    """
     return logging.getLogger(name)
 
 

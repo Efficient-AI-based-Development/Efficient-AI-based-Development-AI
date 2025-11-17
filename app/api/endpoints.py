@@ -1,11 +1,14 @@
 # app/api/endpoints.py
 
 import asyncio
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from ai_module.common.ids import normalize_ids
 from ai_module.chains.prd_chain import generate_prd
 from ai_module.chains.tasklist_chain import generate_tasklist
-from ai_module.chains.codegen_chain import implement_subtask
+from ai_module.chains.codegen_chain import (
+    implement_subtask,
+    implement_interactive_subtask,
+)
 from ai_module.graphs.decomposition_graph import decomposition_app, GraphState
 from app.api.schemas import (
     ProjectInput,
@@ -18,6 +21,7 @@ from app.api.schemas import (
     SubTaskWithParent,
     RepoSnapshot,
     CodegenOutput,
+    SubTask,
 )
 from app.utils.logger import get_logger
 
@@ -62,7 +66,7 @@ def generate_tasklist_endpoint(
         return md
     except Exception as e:
         logger.exception("[TaskList] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"Task List 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"Task List 서버 오류: %e")
 
 
 # 여러 Task를 병렬로 SubTask/SRS로 분해하는 API 엔드포인트
@@ -77,9 +81,6 @@ async def decompose(inp: DecompositionInput = Body(...)):
     cfg = {"recursion_limit": 50}
 
     async def run_one(t):
-        """
-        단일 Task를 LangGraph decomposition_app으로 실행해 DecompositionItem으로 변환.
-        """
         logger.debug(
             "[Decompose] run_one 시작 (task_id=%s, title=%s)", t.task_id, t.title
         )
@@ -177,3 +178,14 @@ async def generate_code_changes(
             status_code=500,
             detail=f"Codegen 서버 오류: {e}",
         )
+
+
+# 대화형 코드 생성(사용자 피드백 반영) API 엔드포인트
+@router.post("/codegen/chat", response_model=CodegenOutput)
+def interactive_codegen(
+    subtask: SubTask,
+    repo_snapshot: RepoSnapshot,
+    user_feedback: str,
+):
+    result = implement_interactive_subtask(subtask, repo_snapshot, user_feedback)
+    return result

@@ -97,6 +97,7 @@ class CodegenOutput(BaseModel):
     summary: str
     changes: List[CodeChange] = Field(default_factory=list)
     notes: str | None = None
+    message: str | None = None
 
 
 class RepoFile(BaseModel):
