@@ -3,7 +3,18 @@
 import asyncio
 from fastapi import APIRouter, HTTPException, Body, Depends
 from ai_module.common.ids import normalize_ids
-from ai_module.chains.prd_chain import generate_prd
+from ai_module.chains.prd_chain import (
+    generate_prd,
+    create_prd_chat_chain,
+)
+from ai_module.chains.srs_chain import (
+    generate_srs,
+    create_srs_chat_chain,
+)
+from ai_module.chains.userstory_chain import (
+    generate_userstory,
+    create_userstory_chat_chain,
+)
 from ai_module.chains.tasklist_chain import generate_tasklist
 from ai_module.chains.codegen_chain import (
     implement_subtask,
@@ -13,6 +24,8 @@ from ai_module.graphs.decomposition_graph import decomposition_app, GraphState
 from app.api.schemas import (
     ProjectInput,
     PRDOutput,
+    SRSOutput,
+    UserStoryOutput,
     TaskListInput,
     TaskListOutput,
     DecompositionInput,
@@ -22,6 +35,8 @@ from app.api.schemas import (
     RepoSnapshot,
     CodegenOutput,
     SubTask,
+    UserStoryInput,
+    SRSInput,
 )
 from app.utils.logger import get_logger
 
@@ -39,12 +54,139 @@ def generate_prd_endpoint(
     try:
         logger.info("[PRD] 요청 수신")
         logger.debug("[PRD] 입력 미리보기: %s", project_input.user_input[:120])
-        md = generate_prd(project_input.user_input)
-        logger.info("[PRD] 문서 생성 완료 (길이=%d)", len(md or ""))
-        return PRDOutput(prd_document=md)
+        prd = generate_prd(project_input.user_input)
+        logger.info("[PRD] 문서 생성 완료 (길이=%d)", len(prd.prd_document or ""))
+        return prd
     except Exception as e:
         logger.exception("[PRD] 오류 발생: %s", e)
         raise HTTPException(status_code=500, detail=f"PRD 서버 오류: {e}")
+
+
+@router.post("/prd/chat", response_model=PRDOutput, summary="PRD 대화형 수정")
+def prd_chat(
+    prd_document: str = Body(...),
+    user_feedback: str = Body(...),
+):
+    try:
+        logger.info("[PRD-CHAT] 요청 수신")
+        logger.debug(
+            "[PRD-CHAT] 사용자 요청 미리보기: %s",
+            user_feedback[:120] if user_feedback else "",
+        )
+
+        chain = create_prd_chat_chain()
+        result = chain.invoke(
+            {"prd_document": prd_document, "user_feedback": user_feedback}
+        )
+
+        logger.info(
+            "[PRD-CHAT] 수정 완료 (길이=%d)",
+            len(getattr(result, "prd_document", "") or ""),
+        )
+        return result
+    except Exception as e:
+        logger.exception("[PRD-CHAT] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"PRD Chat 서버 오류: {e}")
+
+
+@router.post("/srs", response_model=SRSOutput, summary="SRS 생성")
+def generate_srs_endpoint(
+    payload: SRSInput = Body(
+        ..., example={"user_input": "이 PRD를 기반으로 SRS 초안을 생성해줘"}
+    )
+):
+    try:
+        logger.info("[SRS] 요청 수신")
+        logger.debug("[SRS] 입력 미리보기: %s", payload.user_input[:120])
+        srs = generate_srs(payload.user_input)
+        logger.info("[SRS] 문서 생성 완료 (길이=%d)", len(srs.srs_document or ""))
+        return srs
+    except Exception as e:
+        logger.exception("[SRS] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"SRS 서버 오류: {e}")
+
+
+# SRS 문서 대화형 생성/수정 API 엔드포인트
+@router.post("/srs/chat", response_model=SRSOutput, summary="SRS 대화형 수정")
+def srs_chat(
+    srs_document: str = Body(...),
+    user_feedback: str = Body(...),
+):
+    try:
+        logger.info("[SRS-CHAT] 요청 수신")
+        logger.debug(
+            "[SRS-CHAT] 사용자 요청 미리보기: %s",
+            user_feedback[:120] if user_feedback else "",
+        )
+
+        chain = create_srs_chat_chain()
+        result = chain.invoke(
+            {"srs_document": srs_document, "user_feedback": user_feedback}
+        )
+
+        logger.info(
+            "[SRS-CHAT] 수정 완료 (길이=%d)",
+            len(getattr(result, "srs_document", "") or ""),
+        )
+        return result
+    except Exception as e:
+        logger.exception("[SRS-CHAT] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"SRS Chat 서버 오류: {e}")
+
+
+@router.post(
+    "/userstory",
+    response_model=UserStoryOutput,
+    summary="User Story 생성",
+)
+def generate_userstory_endpoint(
+    payload: UserStoryInput = Body(
+        ...,
+        example={"user_input": "회원가입/로그인 플로우에 대한 User Story를 작성해줘"},
+    )
+):
+    try:
+        logger.info("[USERSTORY] 요청 수신")
+        logger.debug("[USERSTORY] 입력 미리보기: %s", payload.user_input[:120])
+        us = generate_userstory(payload.user_input)
+        logger.info(
+            "[USERSTORY] 문서 생성 완료 (길이=%d)",
+            len(us.user_story or ""),
+        )
+        return us
+    except Exception as e:
+        logger.exception("[USERSTORY] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"User Story 서버 오류: {e}")
+
+
+# User Story 대화형 생성/수정 API 엔드포인트
+@router.post(
+    "/userstory/chat", response_model=UserStoryOutput, summary="User Story 대화형 수정"
+)
+def userstory_chat(
+    user_story: str = Body(...),
+    user_feedback: str = Body(...),
+):
+    try:
+        logger.info("[USERSTORY-CHAT] 요청 수신")
+        logger.debug(
+            "[USERSTORY-CHAT] 사용자 요청 미리보기: %s",
+            user_feedback[:120] if user_feedback else "",
+        )
+
+        chain = create_userstory_chat_chain()
+        result = chain.invoke(
+            {"user_story": user_story, "user_feedback": user_feedback}
+        )
+
+        logger.info(
+            "[USERSTORY-CHAT] 수정 완료 (길이=%d)",
+            len(getattr(result, "user_story", "") or ""),
+        )
+        return result
+    except Exception as e:
+        logger.exception("[USERSTORY-CHAT] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"User Story Chat 서버 오류: {e}")
 
 
 # Task List 생성 API 엔드포인트
@@ -66,7 +208,7 @@ def generate_tasklist_endpoint(
         return md
     except Exception as e:
         logger.exception("[TaskList] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"Task List 서버 오류: %e")
+        raise HTTPException(status_code=500, detail=f"Task List 서버 오류: {e}")
 
 
 # 여러 Task를 병렬로 SubTask/SRS로 분해하는 API 엔드포인트
@@ -141,10 +283,8 @@ async def decompose(inp: DecompositionInput = Body(...)):
         all_subtasks.extend(it.subtasks)
 
     output = DecompositionOutput(items=items, all_subtasks=all_subtasks)
-    normalized_dict = normalize_ids(output.model_dump())
-    normalized = DecompositionOutput(**normalized_dict)
     logger.info("[DecomposeBatch] 완료 (success=%d, fail=%d)", len(items), len(errors))
-    return normalized
+    return output
 
 
 # 단일 SubTask에 대한 코드 결과를 생성하는 API 엔드포인트
@@ -181,11 +321,30 @@ async def generate_code_changes(
 
 
 # 대화형 코드 생성(사용자 피드백 반영) API 엔드포인트
-@router.post("/codegen/chat", response_model=CodegenOutput)
+@router.post("/codegen/chat", response_model=CodegenOutput, summary="대화형 Codegen")
 def interactive_codegen(
-    subtask: SubTask,
-    repo_snapshot: RepoSnapshot,
-    user_feedback: str,
+    subtask: SubTask = Body(...),
+    repo_snapshot: RepoSnapshot = Body(...),
+    user_feedback: str = Body(...),
 ):
-    result = implement_interactive_subtask(subtask, repo_snapshot, user_feedback)
-    return result
+    try:
+        logger.info("[Codegen-CHAT] 요청 수신 (subtask_id=%s)", subtask.subtask_id)
+        logger.debug(
+            "[Codegen-CHAT] 사용자 피드백 미리보기: %s",
+            user_feedback[:120] if user_feedback else "",
+        )
+
+        result = implement_interactive_subtask(subtask, repo_snapshot, user_feedback)
+
+        logger.info(
+            "[Codegen-CHAT] 완료: subtask_id=%s, changes=%d",
+            result.subtask_id,
+            len(result.changes),
+        )
+        return result
+    except Exception as e:
+        logger.exception("[Codegen-CHAT] 오류 발생: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Codegen Chat 서버 오류: {e}",
+        )

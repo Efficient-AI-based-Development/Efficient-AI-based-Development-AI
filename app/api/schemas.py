@@ -13,6 +13,42 @@ class ProjectInput(BaseModel):
 # PRD
 class PRDOutput(BaseModel):
     prd_document: str
+    message: str = Field(
+        ...,
+        description="사용자에게 결과를 안내하는 한국어 메시지 (1~2문장 이상, null 불가)",
+    )
+
+
+# SRS
+class SRSOutput(BaseModel):
+    srs_document: str
+    message: str = Field(
+        ...,
+        description="사용자에게 결과를 안내하는 한국어 메시지 (1~2문장 이상, null 불가)",
+    )
+
+
+class SRSInput(BaseModel):
+    user_input: str = Field(
+        ...,
+        description="SRS 생성에 사용할 요구사항/설명 자연어 입력",
+    )
+
+
+# User Story
+class UserStoryOutput(BaseModel):
+    user_story: str
+    message: str = Field(
+        ...,
+        description="사용자에게 결과를 안내하는 한국어 메시지 (1~2문장 이상, null 불가)",
+    )
+
+
+class UserStoryInput(BaseModel):
+    user_input: str = Field(
+        ...,
+        description="User Story 생성에 사용할 요구사항/설명 자연어 입력",
+    )
 
 
 # Task List

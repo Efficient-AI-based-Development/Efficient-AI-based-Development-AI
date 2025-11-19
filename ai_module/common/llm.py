@@ -26,6 +26,8 @@ def get_model_name(kind: str | None = None) -> str:
         return getattr(settings, "LLM_MODEL_AUDITOR", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "writer":
         return getattr(settings, "LLM_MODEL_WRITER", DEFAULT_MODEL) or DEFAULT_MODEL
+    if kind == "userstory":
+        return getattr(settings, "LLM_MODEL_USERSTORY", DEFAULT_MODEL) or DEFAULT_MODEL
     return getattr(settings, "LLM_MODEL_SOLAR", DEFAULT_MODEL) or DEFAULT_MODEL
 
 

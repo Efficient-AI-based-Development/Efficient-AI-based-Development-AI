@@ -4,8 +4,16 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
-# Taskdml ID/역할/부모 연결 표준화
+#
 def normalize_ids(payload: Any) -> Any:
+    """
+    DecompositionOutput 형태의 dict에 대해
+    각 SubTask에 ST-<task_id>-NN 형식의 일관된 ID를 부여하고
+    dependencies 안의 참조도 새 ID로 치환한다.
+
+    - payload 가 dict 이 아닌 경우(그냥 Pydantic 모델 등)는 그대로 반환한다.
+    - 반환값은 { "items": ..., "all_subtasks": ... } 구조의 dict 이다.
+    """
     if not isinstance(payload, dict):
         return payload
 
