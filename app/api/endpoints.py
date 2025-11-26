@@ -3,6 +3,10 @@
 import asyncio
 from fastapi import APIRouter, HTTPException, Body, Depends
 from ai_module.common.ids import normalize_ids
+from ai_module.chains.pm_chain import (
+    generate_pm_metadata,
+    update_pm_metadata,
+)
 from ai_module.chains.prd_chain import (
     generate_prd,
     create_prd_chat_chain,
@@ -23,6 +27,10 @@ from ai_module.chains.codegen_chain import (
 from ai_module.graphs.decomposition_graph import decomposition_app, GraphState
 from app.api.schemas import (
     ProjectInput,
+    PMAgentInput,
+    PMAgentOutput,
+    PMAgentChatInput,
+    ProjectMetadata,
     PRDOutput,
     SRSOutput,
     UserStoryOutput,
@@ -42,6 +50,78 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+
+# PM Agent 초기 메타데이터 추출 API 엔드포인트
+@router.post(
+    "/pm", response_model=PMAgentOutput, summary="PM Agent - 프로젝트 메타데이터 추출"
+)
+def pm_agent_endpoint(
+    pm_input: PMAgentInput = Body(
+        ...,
+        example={
+            "user_input": "AI 기반 Todo 앱을 만들고 싶어요. React와 FastAPI로 개발하고, GPT-4를 사용할 예정이에요."
+        },
+    )
+):
+    try:
+        logger.info("[PM-Agent] 요청 수신")
+        logger.debug("[PM-Agent] 입력: %s", pm_input.user_input[:120])
+        result = generate_pm_metadata(pm_input.user_input)
+        logger.info(
+            "[PM-Agent] 메타데이터 추출 완료 (프로젝트명=%s)",
+            result.metadata.project_name,
+        )
+        return result
+    except Exception as e:
+        logger.exception("[PM-Agent] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"PM Agent 서버 오류: {e}")
+
+
+# PM Agent 대화형 수정 API 엔드포인트
+@router.post(
+    "/pm/chat",
+    response_model=PMAgentOutput,
+    summary="PM Agent - 대화형 메타데이터 수정",
+)
+def pm_agent_chat(
+    pm_chat_input: PMAgentChatInput = Body(
+        ...,
+        example={
+            "current_metadata": {
+                "project_name": "AI Todo App",
+                "main_color": "#3498db",
+                "page_count": 5,
+                "feature_count": 8,
+                "ai_model": "GPT-4",
+                "tech_stack": [
+                    "React",
+                    "TypeScript",
+                    "FastAPI",
+                    "Python",
+                    "PostgreSQL",
+                    "Docker",
+                ],
+                "service_description": "AI 기반 Todo 앱",
+            },
+            "user_feedback": "메인 컬러를 녹색 계열로 바꾸고, 페이지 수를 3개로 줄여줘",
+        },
+    )
+):
+    try:
+        logger.info("[PM-Agent-Chat] 요청 수신")
+        logger.debug("[PM-Agent-Chat] 피드백: %s", pm_chat_input.user_feedback[:120])
+        result = update_pm_metadata(
+            pm_chat_input.current_metadata, pm_chat_input.user_feedback
+        )
+        logger.info(
+            "[PM-Agent-Chat] 메타데이터 수정 완료 (프로젝트명=%s)",
+            result.metadata.project_name,
+        )
+        return result
+    except Exception as e:
+        logger.exception("[PM-Agent-Chat] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"PM Agent Chat 서버 오류: %e")
 
 
 # PRD 생성 API 엔드포인트
@@ -86,7 +166,7 @@ def prd_chat(
         return result
     except Exception as e:
         logger.exception("[PRD-CHAT] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"PRD Chat 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"PRD Chat 서버 오류: %e")
 
 
 @router.post("/srs", response_model=SRSOutput, summary="SRS 생성")
@@ -103,7 +183,7 @@ def generate_srs_endpoint(
         return srs
     except Exception as e:
         logger.exception("[SRS] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"SRS 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"SRS 서버 오류: %e")
 
 
 # SRS 문서 대화형 생성/수정 API 엔드포인트
@@ -131,7 +211,7 @@ def srs_chat(
         return result
     except Exception as e:
         logger.exception("[SRS-CHAT] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"SRS Chat 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"SRS Chat 서버 오류: %e")
 
 
 @router.post(
@@ -156,7 +236,7 @@ def generate_userstory_endpoint(
         return us
     except Exception as e:
         logger.exception("[USERSTORY] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"User Story 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"User Story 서버 오류: %e")
 
 
 # User Story 대화형 생성/수정 API 엔드포인트
@@ -186,7 +266,7 @@ def userstory_chat(
         return result
     except Exception as e:
         logger.exception("[USERSTORY-CHAT] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"User Story Chat 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"User Story Chat 서버 오류: %e")
 
 
 # Task List 생성 API 엔드포인트
@@ -208,7 +288,7 @@ def generate_tasklist_endpoint(
         return md
     except Exception as e:
         logger.exception("[TaskList] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"Task List 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"Task List 서버 오류: %e")
 
 
 # 여러 Task를 병렬로 SubTask/SRS로 분해하는 API 엔드포인트
@@ -316,7 +396,7 @@ async def generate_code_changes(
         logger.exception("[Codegen] 오류 발생: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Codegen 서버 오류: {e}",
+            detail=f"Codegen 서버 오류: %e",
         )
 
 
@@ -346,5 +426,5 @@ def interactive_codegen(
         logger.exception("[Codegen-CHAT] 오류 발생: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Codegen Chat 서버 오류: {e}",
+            detail=f"Codegen Chat 서버 오류: %e",
         )

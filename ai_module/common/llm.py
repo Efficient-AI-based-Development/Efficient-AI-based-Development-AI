@@ -16,8 +16,14 @@ logger = get_logger(__name__)
 
 # 프롬프트에 따라 사용할 LLM 모델 결정
 def get_model_name(kind: str | None = None) -> str:
+    if kind == "pm":
+        return getattr(settings, "LLM_MODEL_PM", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "prd":
         return getattr(settings, "LLM_MODEL_PRD", DEFAULT_MODEL) or DEFAULT_MODEL
+    if kind == "srs":
+        return getattr(settings, "LLM_MODEL_SRS", DEFAULT_MODEL) or DEFAULT_MODEL
+    if kind == "userstory":
+        return getattr(settings, "LLM_MODEL_USERSTORY", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "tasklist":
         return getattr(settings, "LLM_MODEL_TASKLIST", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "planner":
@@ -26,8 +32,8 @@ def get_model_name(kind: str | None = None) -> str:
         return getattr(settings, "LLM_MODEL_AUDITOR", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "writer":
         return getattr(settings, "LLM_MODEL_WRITER", DEFAULT_MODEL) or DEFAULT_MODEL
-    if kind == "userstory":
-        return getattr(settings, "LLM_MODEL_USERSTORY", DEFAULT_MODEL) or DEFAULT_MODEL
+    if kind == "codegen":
+        return getattr(settings, "LLM_MODEL_CODEGEN", DEFAULT_MODEL) or DEFAULT_MODEL
     return getattr(settings, "LLM_MODEL_SOLAR", DEFAULT_MODEL) or DEFAULT_MODEL
 
 

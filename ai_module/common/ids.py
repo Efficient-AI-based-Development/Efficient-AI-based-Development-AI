@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
-#
+# 
 def normalize_ids(payload: Any) -> Any:
     """
     DecompositionOutput 형태의 dict에 대해
