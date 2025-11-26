@@ -7,6 +7,10 @@ from ai_module.chains.pm_chain import (
     generate_pm_metadata,
     update_pm_metadata,
 )
+from ai_module.chains.task_ai_chain import (
+    modify_task,
+    add_task,
+)
 from ai_module.chains.prd_chain import (
     generate_prd,
     create_prd_chat_chain,
@@ -31,6 +35,9 @@ from app.api.schemas import (
     PMAgentOutput,
     PMAgentChatInput,
     ProjectMetadata,
+    TaskModifyInput,
+    TaskAddInput,
+    TaskAIOutput,
     PRDOutput,
     SRSOutput,
     UserStoryOutput,
@@ -124,6 +131,95 @@ def pm_agent_chat(
         raise HTTPException(status_code=500, detail=f"PM Agent Chat 서버 오류: %e")
 
 
+# Task AI Agent - Task 수정 API 엔드포인트
+@router.post(
+    "/task/modify",
+    response_model=TaskAIOutput,
+    summary="Task AI Agent - 기존 Task 수정",
+)
+def task_modify_endpoint(
+    task_input: TaskModifyInput = Body(
+        ...,
+        example={
+            "current_task": {
+                "task_id": 1,
+                "title": "회원 가입 API 구현",
+                "description": "이메일과 비밀번호로 회원가입하는 API를 만들기",
+                "assigned_role": "Backend",
+                "priority": 8,
+                "tag": "개발",
+            },
+            "user_feedback": "OAuth 소셜 로그인도 추가하고, 우선순위를 10으로 올려줘",
+        },
+    )
+):
+    try:
+        logger.info("[Task-AI-Modify] 요청 수신 (task_id=%s)", task_input.current_task.task_id)
+        logger.debug("[Task-AI-Modify] 피드백: %s", task_input.user_feedback[:120])
+        result = modify_task(task_input.current_task, task_input.user_feedback)
+        logger.info(
+            "[Task-AI-Modify] Task 수정 완료 (task_id=%s, title=%s)",
+            result.task.task_id,
+            result.task.title,
+        )
+        return result
+    except Exception as e:
+        logger.exception("[Task-AI-Modify] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"Task Modify 서버 오류: {e}")
+
+
+# Task AI Agent - Task 추가 API 엔드포인트
+@router.post(
+    "/task/add",
+    response_model=TaskAIOutput,
+    summary="Task AI Agent - 새 Task 추가",
+)
+def task_add_endpoint(
+    task_input: TaskAddInput = Body(
+        ...,
+        example={
+            "existing_tasks": [
+                {
+                    "task_id": 1,
+                    "title": "회원 가입 API 구현",
+                    "description": "이메일과 비밀번호로 회원가입하는 API를 만들기",
+                    "assigned_role": "Backend",
+                    "priority": 8,
+                    "tag": "개발",
+                },
+                {
+                    "task_id": 2,
+                    "title": "로그인 화면 UI",
+                    "description": "로그인 폼 디자인 및 구현",
+                    "assigned_role": "Frontend",
+                    "priority": 7,
+                    "tag": "개발",
+                },
+            ],
+            "user_request": "비밀번호 찾기 기능도 추가해줘. 이메일로 인증코드를 보내는 방식으로",
+            "project_context": "회원 인증 시스템을 구축하는 프로젝트",
+        },
+    )
+):
+    try:
+        logger.info("[Task-AI-Add] 요청 수신 (existing_tasks=%d)", len(task_input.existing_tasks))
+        logger.debug("[Task-AI-Add] 요청: %s", task_input.user_request[:120])
+        result = add_task(
+            task_input.existing_tasks,
+            task_input.user_request,
+            task_input.project_context,
+        )
+        logger.info(
+            "[Task-AI-Add] Task 추가 완료 (new_task_id=%s, title=%s)",
+            result.task.task_id,
+            result.task.title,
+        )
+        return result
+    except Exception as e:
+        logger.exception("[Task-AI-Add] 오류 발생: %s", e)
+        raise HTTPException(status_code=500, detail=f"Task Add 서버 오류: %e")
+
+
 # PRD 생성 API 엔드포인트
 @router.post("/prd", response_model=PRDOutput, summary="PRD 생성")
 def generate_prd_endpoint(
@@ -139,7 +235,7 @@ def generate_prd_endpoint(
         return prd
     except Exception as e:
         logger.exception("[PRD] 오류 발생: %s", e)
-        raise HTTPException(status_code=500, detail=f"PRD 서버 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"PRD 서버 오류: %e")
 
 
 @router.post("/prd/chat", response_model=PRDOutput, summary="PRD 대화형 수정")

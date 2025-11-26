@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     DB_SERVICE_NAME: str
     LLM_MODEL_SOLAR: str = "solar-pro2"
     LLM_MODEL_PM: str = "solar-pro2"
+    LLM_MODEL_TASK_AI: str = "solar-pro2"
     LLM_MODEL_WRITER: str = "solar-pro2"
     LLM_MODEL_AUDITOR: str = "solar-pro2"
     LLM_MODEL_DECOMPOSER: str = "solar-pro2"
