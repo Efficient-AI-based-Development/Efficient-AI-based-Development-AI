@@ -110,6 +110,26 @@ class TaskListOutput(BaseModel):
     tasks: List[Task]
 
 
+# Task AI Agent - 기존 Task 수정
+class TaskModifyInput(BaseModel):
+    current_task: Task = Field(..., description="수정할 기존 Task")
+    user_feedback: str = Field(..., description="수정 요청 내용")
+
+
+# Task AI Agent - 새 Task 추가
+class TaskAddInput(BaseModel):
+    existing_tasks: List[Task] = Field(..., description="기존 Task 목록")
+    user_request: str = Field(..., description="추가하고 싶은 Task 설명")
+    project_context: Optional[str] = Field(None, description="프로젝트 컨텍스트 (선택)")
+
+
+# Task AI Agent - 출력
+class TaskAIOutput(BaseModel):
+    task: Task = Field(..., description="수정되거나 새로 생성된 Task")
+    changes: List[str] = Field(default_factory=list, description="변경 사항 요약")
+    message: str = Field(..., description="사용자에게 안내하는 한국어 메시지")
+
+
 # Planner / SubTask
 class SubTask(BaseModel):
     subtask_id: str

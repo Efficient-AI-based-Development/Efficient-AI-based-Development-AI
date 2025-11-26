@@ -18,6 +18,8 @@ logger = get_logger(__name__)
 def get_model_name(kind: str | None = None) -> str:
     if kind == "pm":
         return getattr(settings, "LLM_MODEL_PM", DEFAULT_MODEL) or DEFAULT_MODEL
+    if kind == "task_ai":
+        return getattr(settings, "LLM_MODEL_TASK_AI", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "prd":
         return getattr(settings, "LLM_MODEL_PRD", DEFAULT_MODEL) or DEFAULT_MODEL
     if kind == "srs":
